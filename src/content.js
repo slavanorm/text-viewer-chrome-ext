@@ -107,6 +107,12 @@ function getModeForExtension(ext) {
             break;
         case 'js':
         case 'json':
+        case 'txt':
+        case 'log':
+        case 'toml':
+        case 'ini':
+        case 'yaml':
+        case 'yml':
             mode = 'javascript';
             break;
         case 'css':

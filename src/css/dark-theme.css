@@ -1,0 +1,81 @@
+/* Dark theme for CodeMirror */
+.CodeMirror {
+    background-color: #1e1e1e !important;
+    color: #d4d4d4 !important;
+    font-family: 'Iosevka', 'Iosevka Term', monospace !important;
+    font-weight: bold !important;
+    text-align: left !important;
+    width: 50% !important;
+    margin: 0 auto !important;
+}
+
+.CodeMirror-gutters {
+    background-color: #252526 !important;
+    border-right: 1px solid #3e3e42 !important;
+    color: #858585 !important;
+}
+
+.CodeMirror-linenumber {
+    color: #858585 !important;
+}
+
+.CodeMirror-cursor {
+    border-left: 1px solid #aeafad !important;
+}
+
+.CodeMirror-selected {
+    background: #264f78 !important;
+}
+
+.CodeMirror-line::selection,
+.CodeMirror-line > span::selection,
+.CodeMirror-line > span > span::selection {
+    background: #264f78 !important;
+}
+
+.CodeMirror-line::-moz-selection,
+.CodeMirror-line > span::-moz-selection,
+.CodeMirror-line > span > span::-moz-selection {
+    background: #264f78 !important;
+}
+
+/* Syntax highlighting colors */
+.cm-keyword { color: #569cd6 !important; }
+.cm-atom { color: #569cd6 !important; }
+.cm-number { color: #b5cea8 !important; }
+.cm-def { color: #4ec9b0 !important; }
+.cm-variable { color: #9cdcfe !important; }
+.cm-variable-2 { color: #9cdcfe !important; }
+.cm-variable-3 { color: #4ec9b0 !important; }
+.cm-property { color: #9cdcfe !important; }
+.cm-operator { color: #d4d4d4 !important; }
+.cm-comment { color: #6a9955 !important; }
+.cm-string { color: #ce9178 !important; }
+.cm-string-2 { color: #ce9178 !important; }
+.cm-meta { color: #c586c0 !important; }
+.cm-qualifier { color: #4ec9b0 !important; }
+.cm-builtin { color: #dcdcaa !important; }
+.cm-bracket { color: #ffd700 !important; }
+.cm-tag { color: #569cd6 !important; }
+.cm-attribute { color: #9cdcfe !important; }
+.cm-header { color: #569cd6 !important; }
+.cm-quote { color: #6a9955 !important; }
+.cm-hr { color: #3e3e42 !important; }
+.cm-link { color: #569cd6 !important; }
+.cm-error { color: #f44747 !important; }
+
+/* Scrollbar styling */
+.CodeMirror-vscrollbar,
+.CodeMirror-hscrollbar {
+    background-color: #1e1e1e !important;
+}
+
+.CodeMirror-scrollbar-filler,
+.CodeMirror-gutter-filler {
+    background-color: #1e1e1e !important;
+}
+
+/* Active line highlighting */
+.CodeMirror-activeline-background {
+    background: #282828 !important;
+}
