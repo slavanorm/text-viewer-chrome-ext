@@ -106,7 +106,6 @@ function getModeForExtension(ext) {
             mode = 'sql';
             break;
         case 'js':
-        case 'json':
         case 'txt':
         case 'log':
         case 'toml':
@@ -133,6 +132,9 @@ function applyEditor(containerElement, codeMode, content) {
     chrome.extension.sendRequest({
         msg : "getSettings"
     }, function (settings) {
+        var url = document.location.href;
+        var state = getFileState(url);
+
         var editor = CodeMirror(function (codeEditorElement) {
             containerElement.html(codeEditorElement)
         }, {
@@ -140,12 +142,335 @@ function applyEditor(containerElement, codeMode, content) {
             readOnly: true,
             lineNumbers : true,
             fullScreen : true,
-            lineWrapping : settings.doLineWrap,
+            lineWrapping : state.lineWrapping !== undefined ? state.lineWrapping : settings.doLineWrap,
             mode : codeMode,
-            useCPP : (codeMode == "clike")
+            useCPP : (codeMode == "clike"),
+            keyMap: "default",
+            extraKeys: {}
+        });
+
+        editor.on('keydown', function(cm, event) {
+            if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+                event.codemirrorIgnore = true;
+            }
         });
         applyStyleFromSettings(settings);
+        editor.execCommand("goDocEnd");
+        addWrapToggleButton(editor, url);
+        addCenterToggleButton(url);
+        addHideCharsButton(editor, url, state);
+        addHideColumnsButton(editor, url, state);
     });
+}
+
+function getFileState(url) {
+    var key = 'btv_state_' + url;
+    var state = localStorage[key];
+    return state ? JSON.parse(state) : {};
+}
+
+function saveFileState(url, state) {
+    var key = 'btv_state_' + url;
+    localStorage[key] = JSON.stringify(state);
+}
+
+function addWrapToggleButton(editor, url) {
+    var button = $('<button id="wrapToggle">Toggle Wrap</button>');
+    button.css({
+        'position': 'fixed',
+        'top': '10px',
+        'right': '10px',
+        'z-index': 9999,
+        'padding': '8px 12px',
+        'background-color': '#3e3e42',
+        'color': '#d4d4d4',
+        'border': '1px solid #858585',
+        'border-radius': '4px',
+        'cursor': 'pointer',
+        'font-family': 'monospace'
+    });
+    button.click(function() {
+        var wrap = editor.getOption('lineWrapping');
+        editor.setOption('lineWrapping', !wrap);
+        editor.execCommand('goDocEnd');
+        var state = getFileState(url);
+        state.lineWrapping = !wrap;
+        saveFileState(url, state);
+    });
+    $('body').append(button);
+}
+
+function addCenterToggleButton(url) {
+    var state = getFileState(url);
+    var centered = state.centerView !== undefined ? state.centerView : true;
+
+    var button = $('<button id="centerToggle">Toggle Center</button>');
+    button.css({
+        'position': 'fixed',
+        'top': '10px',
+        'right': '140px',
+        'z-index': 9999,
+        'padding': '8px 12px',
+        'background-color': '#3e3e42',
+        'color': '#d4d4d4',
+        'border': '1px solid #858585',
+        'border-radius': '4px',
+        'cursor': 'pointer',
+        'font-family': 'monospace'
+    });
+
+    function applyCenterView(centered) {
+        var cm = $('.CodeMirror');
+        if (centered) {
+            cm.css({
+                'width': '50%',
+                'margin': '0 auto'
+            });
+        } else {
+            cm.css({
+                'width': '100%',
+                'margin': '0'
+            });
+        }
+    }
+
+    applyCenterView(centered);
+
+    button.click(function() {
+        centered = !centered;
+        applyCenterView(centered);
+        var state = getFileState(url);
+        state.centerView = centered;
+        saveFileState(url, state);
+    });
+
+    $('body').append(button);
+}
+
+function addHideCharsButton(editor, url, state) {
+    var container = $('<div id="hideCharsControls"></div>');
+    container.css({
+        'position': 'fixed',
+        'top': '50px',
+        'right': '10px',
+        'z-index': 9999,
+        'background-color': '#3e3e42',
+        'color': '#d4d4d4',
+        'border': '1px solid #858585',
+        'border-radius': '4px',
+        'padding': '8px',
+        'font-family': 'monospace'
+    });
+
+    var hideChars = state.hideChars || 50;
+    var input = $('<input type="number" id="hideCharsInput" placeholder="50" value="' + hideChars + '" />');
+    input.css({
+        'width': '60px',
+        'padding': '4px',
+        'margin-right': '5px',
+        'background-color': '#252526',
+        'color': '#d4d4d4',
+        'border': '1px solid #858585',
+        'font-family': 'monospace'
+    });
+
+    var button = $('<button id="hideCharsToggle">Hide Chars</button>');
+    button.css({
+        'padding': '4px 8px',
+        'background-color': '#252526',
+        'color': '#d4d4d4',
+        'border': '1px solid #858585',
+        'cursor': 'pointer',
+        'font-family': 'monospace'
+    });
+
+    container.append(input);
+    container.append(button);
+
+    var hidden = state.charsHidden || false;
+    var original = editor.getValue();
+
+    if (hidden) {
+        var n = hideChars;
+        var lines = original.split('\n');
+        var processed = lines.map(function(line) {
+            return line.substring(n);
+        });
+        editor.setValue(processed.join('\n'));
+        button.text('Show All');
+        setTimeout(function() {
+            editor.execCommand('goDocEnd');
+        }, 100);
+    }
+
+    button.click(function() {
+        if (!hidden) {
+            var n = parseInt(input.val()) || 0;
+            var lines = original.split('\n');
+            var processed = lines.map(function(line) {
+                return line.substring(n);
+            });
+            editor.setValue(processed.join('\n'));
+            button.text('Show All');
+            hidden = true;
+            var fileState = getFileState(url);
+            fileState.charsHidden = true;
+            fileState.hideChars = n;
+            saveFileState(url, fileState);
+        } else {
+            editor.setValue(original);
+            button.text('Hide Chars');
+            hidden = false;
+            var fileState = getFileState(url);
+            fileState.charsHidden = false;
+            saveFileState(url, fileState);
+        }
+        editor.execCommand('goDocEnd');
+    });
+
+    input.on('change', function() {
+        var fileState = getFileState(url);
+        fileState.hideChars = parseInt(input.val()) || 50;
+        saveFileState(url, fileState);
+    });
+
+    input.on('keypress', function(e) {
+        if (e.which === 13) {
+            button.click();
+        }
+    });
+
+    $('body').append(container);
+}
+
+function addHideColumnsButton(editor, url, state) {
+    var container = $('<div id="hideColumnsControls"></div>');
+    container.css({
+        'position': 'fixed',
+        'top': '100px',
+        'right': '10px',
+        'z-index': 9999,
+        'background-color': '#3e3e42',
+        'color': '#d4d4d4',
+        'border': '1px solid #858585',
+        'border-radius': '4px',
+        'padding': '8px',
+        'font-family': 'monospace'
+    });
+
+    var hideColumns = state.hideColumns || 3;
+    var delimiter = state.delimiter || '\t';
+
+    var inputCols = $('<input type="number" id="hideColumnsInput" placeholder="3" value="' + hideColumns + '" />');
+    inputCols.css({
+        'width': '40px',
+        'padding': '4px',
+        'margin-right': '5px',
+        'background-color': '#252526',
+        'color': '#d4d4d4',
+        'border': '1px solid #858585',
+        'font-family': 'monospace'
+    });
+
+    var inputDelim = $('<input type="text" id="delimiterInput" placeholder="\\t" value="' + (delimiter === '\t' ? '\\t' : delimiter) + '" />');
+    inputDelim.css({
+        'width': '40px',
+        'padding': '4px',
+        'margin-right': '5px',
+        'background-color': '#252526',
+        'color': '#d4d4d4',
+        'border': '1px solid #858585',
+        'font-family': 'monospace'
+    });
+
+    var button = $('<button id="hideColumnsToggle">Hide Cols</button>');
+    button.css({
+        'padding': '4px 8px',
+        'background-color': '#252526',
+        'color': '#d4d4d4',
+        'border': '1px solid #858585',
+        'cursor': 'pointer',
+        'font-family': 'monospace'
+    });
+
+    container.append(inputCols);
+    container.append(inputDelim);
+    container.append(button);
+
+    var hidden = state.columnsHidden || false;
+    var original = editor.getValue();
+
+    if (hidden) {
+        var n = hideColumns;
+        var delim = delimiter;
+        var lines = original.split('\n');
+        var processed = lines.map(function(line) {
+            var parts = line.split(delim);
+            return parts.slice(n).join(delim);
+        });
+        editor.setValue(processed.join('\n'));
+        button.text('Show All');
+        setTimeout(function() {
+            editor.execCommand('goDocEnd');
+        }, 100);
+    }
+
+    button.click(function() {
+        if (!hidden) {
+            var n = parseInt(inputCols.val()) || 0;
+            var delimValue = inputDelim.val();
+            var delim = delimValue === '\\t' ? '\t' : delimValue;
+            var lines = original.split('\n');
+            var processed = lines.map(function(line) {
+                var parts = line.split(delim);
+                return parts.slice(n).join(delim);
+            });
+            editor.setValue(processed.join('\n'));
+            button.text('Show All');
+            hidden = true;
+            var fileState = getFileState(url);
+            fileState.columnsHidden = true;
+            fileState.hideColumns = n;
+            fileState.delimiter = delim;
+            saveFileState(url, fileState);
+        } else {
+            editor.setValue(original);
+            button.text('Hide Cols');
+            hidden = false;
+            var fileState = getFileState(url);
+            fileState.columnsHidden = false;
+            saveFileState(url, fileState);
+        }
+        editor.execCommand('goDocEnd');
+    });
+
+    inputCols.on('change', function() {
+        var fileState = getFileState(url);
+        fileState.hideColumns = parseInt(inputCols.val()) || 3;
+        saveFileState(url, fileState);
+    });
+
+    inputDelim.on('change', function() {
+        var delimValue = inputDelim.val();
+        var delim = delimValue === '\\t' ? '\t' : delimValue;
+        var fileState = getFileState(url);
+        fileState.delimiter = delim;
+        saveFileState(url, fileState);
+    });
+
+    inputCols.on('keypress', function(e) {
+        if (e.which === 13) {
+            button.click();
+        }
+    });
+
+    inputDelim.on('keypress', function(e) {
+        if (e.which === 13) {
+            button.click();
+        }
+    });
+
+    $('body').append(container);
 }
 
 /*
